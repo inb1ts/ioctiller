@@ -1,12 +1,17 @@
-use ioctiller::Config;
+use ioctiller::{Cli, Config};
 use std::env;
 use std::process;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let config = Config::build(&args).unwrap_or_else(|err| {
-        eprintln!("Problem parsing config file path: {err}");
+    let cli = Cli::build(&args).unwrap_or_else(|err| {
+        eprintln!("Problem parsing file path arg: {err}");
+        process::exit(1);
+    });
+
+    let config = Config::build(&cli).unwrap_or_else(|err| {
+        eprintln!("Problem loading config file contents: {err}");
         process::exit(1);
     });
 
