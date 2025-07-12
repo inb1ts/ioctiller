@@ -31,8 +31,27 @@ pub struct Config {
 pub struct Ioctl {
     name: String,
     code: u32,
-    input_buffer_size: u32,
-    output_buffer_size: u32,
+    input_buffer_size: usize,
+    output_buffer_size: usize,
+    input_buffer_content: Option<Vec<BufferContentEntry>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BufferContentEntry {
+    offset: u32,
+    #[serde(flatten)]
+    entry_data: EntryData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum EntryData {
+    U8 { value: u8 },
+    U16 { value: u16 },
+    U32 { value: u32 },
+    U64 { value: u32 },
+    String8 { value: String },
+    Fill { value: u8, length: u32 },
 }
 
 impl Config {
