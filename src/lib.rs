@@ -38,7 +38,7 @@ pub struct Ioctl {
 
 #[derive(Debug, Deserialize)]
 pub struct BufferContentEntry {
-    offset: u32,
+    offset: usize,
     #[serde(flatten)]
     entry_data: EntryData,
 }
@@ -49,9 +49,9 @@ pub enum EntryData {
     U8 { value: u8 },
     U16 { value: u16 },
     U32 { value: u32 },
-    U64 { value: u32 },
+    U64 { value: u64 },
     String8 { value: String },
-    Fill { value: u8, length: u32 },
+    Fill { value: u8, length: usize },
 }
 
 impl Config {

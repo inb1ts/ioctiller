@@ -40,7 +40,7 @@ fn open_device_handle(device_name: PCWSTR) -> windows::core::Result<HANDLE> {
 fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core::Result<()> {
     // TODO: Handle configuring buffers from config
     let mut bytes_returned: u32 = 0;
-    let input_buffer: [u8; 0] = [];
+    let input_buffer = build_input_buffer(ioctl).unwrap();
     let output_buffer: [u8; 0] = [];
 
     unsafe {
@@ -48,17 +48,28 @@ fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core
             device_handle,
             ioctl.code,
             Some(input_buffer.as_ptr() as *const _),
-            ioctl.input_buffer_size,
+            ioctl.input_buffer_size.try_into()?,
             Some(output_buffer.as_ptr() as *mut _),
-            ioctl.output_buffer_size,
+            ioctl.output_buffer_size.try_into()?,
             Some(&mut bytes_returned),
             None,
         )
     }
 }
 
+fn check_buffer_overwrite(
+    offset: usize,
+    entry_size: usize,
+    buffer_size: usize,
+) -> Result<(), &'static str> {
+    if (offset + entry_size) > buffer_size {
+        return Err("Input buffer entry content is out of bounds");
+    }
+    Ok(())
+}
+
 fn build_input_buffer(ioctl: &Ioctl) -> Result<Vec<u8>, &'static str> {
-    let buffer = vec![0; ioctl.input_buffer_size];
+    let mut buffer = vec![0; ioctl.input_buffer_size as usize];
 
     // TODO: Check there are input_buffer_contents
     let buffer_content_entries = match &ioctl.input_buffer_content {
@@ -67,13 +78,45 @@ fn build_input_buffer(ioctl: &Ioctl) -> Result<Vec<u8>, &'static str> {
     };
 
     for entry in buffer_content_entries {
-        match entry.entry_data {
-            crate::EntryData::U8 => _,
-            crate::EntryData::U16 _,
-            crate::EntryData::U32 _,
-            crate::EntryData::U64 _,
-            crate::EntryData::String8 => _,
-            crate::EntryData::Fill => _,
+        match &entry.entry_data {
+            crate::EntryData::U8 { value } => {
+                check_buffer_overwrite(entry.offset, size_of::<u8>(), ioctl.input_buffer_size)?;
+
+                buffer[entry.offset as usize] = *value;
+            }
+            crate::EntryData::U16 { value } => {
+                let u16_size = size_of::<u16>();
+                check_buffer_overwrite(entry.offset, u16_size, ioctl.input_buffer_size)?;
+
+                // TODO: This looks awful. There must be a simpler way?
+                buffer[entry.offset..entry.offset + u16_size]
+                    .copy_from_slice(&(*value).to_le_bytes());
+            }
+            crate::EntryData::U32 { value } => {
+                let u32_size = size_of::<u32>();
+                check_buffer_overwrite(entry.offset, u32_size, ioctl.input_buffer_size)?;
+
+                buffer[entry.offset..entry.offset + u32_size]
+                    .copy_from_slice(&(*value).to_le_bytes());
+            }
+            crate::EntryData::U64 { value } => {
+                let u64_size = size_of::<u64>();
+                check_buffer_overwrite(entry.offset, u64_size, ioctl.input_buffer_size)?;
+
+                buffer[entry.offset..entry.offset + u64_size]
+                    .copy_from_slice(&(*value).to_le_bytes());
+            }
+            crate::EntryData::String8 { value } => {
+                let str_size = value.len();
+                check_buffer_overwrite(entry.offset, str_size, ioctl.input_buffer_size)?;
+
+                buffer[entry.offset..entry.offset + str_size].copy_from_slice(value.as_bytes());
+            }
+            crate::EntryData::Fill { value, length } => {
+                check_buffer_overwrite(entry.offset, *length, ioctl.input_buffer_size)?;
+
+                buffer[entry.offset..entry.offset + length].fill(*value);
+            }
         }
     }
 
@@ -95,11 +138,13 @@ mod tests {
             input_buffer_content: Some(vec![
                 BufferContentEntry {
                     offset: 0x0,
-                    entry_data: EntryData::U32 { value: 0xC0DE },
+                    entry_data: EntryData::U32 { value: 0x1337C0DE },
                 },
                 BufferContentEntry {
                     offset: 0x10,
-                    entry_data: EntryData::U64 { value: 0xDEADBEEF },
+                    entry_data: EntryData::U64 {
+                        value: 0xDEADBEEFCAFEBABE,
+                    },
                 },
                 BufferContentEntry {
                     offset: 0x20,
@@ -125,9 +170,18 @@ mod tests {
             ]),
         };
 
-        let correct_buffer = vec![];
+        let correct_buffer = vec![
+            0xDE, 0xC0, 0x37, 0x13, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0xBE, 0xBA, 0xFE, 0xCA, 0xEF, 0xBE, 0xAD, 0xDE, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x41, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4D, 0x5A, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+        ];
 
-        let input_buffer: Vec<u8> = build_input_buffer(&ioctl);
+        let input_buffer: Vec<u8> = build_input_buffer(&ioctl).unwrap();
 
         assert_eq!(correct_buffer, input_buffer);
     }
