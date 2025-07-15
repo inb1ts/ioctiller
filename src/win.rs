@@ -8,12 +8,25 @@ use windows_strings::HSTRING;
 pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<()> {
     println!("Sending {} to {}", ioctl.name, device_name);
 
+    let device_handle: HANDLE;
     let device_name_arg = HSTRING::from(device_name);
     let device_name_arg = PCWSTR::from_raw(device_name_arg.as_ptr());
 
-    let device_handle = open_device_handle(device_name_arg)?;
+    unsafe {
+        device_handle = CreateFileW(
+            device_name_arg,
+            GENERIC_READ.0 | GENERIC_WRITE.0 | DELETE.0,
+            FILE_SHARE_NONE,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            None,
+        )?;
+    }
 
     send_device_io_control(device_handle, ioctl)?;
+
+    println!("DeviceIoControl called successfully.");
 
     unsafe {
         windows::Win32::Foundation::CloseHandle(device_handle)?;
@@ -23,25 +36,12 @@ pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<
     Ok(())
 }
 
-fn open_device_handle(device_name: PCWSTR) -> windows::core::Result<HANDLE> {
-    unsafe {
-        CreateFileW(
-            device_name,
-            GENERIC_READ.0 | GENERIC_WRITE.0 | DELETE.0,
-            FILE_SHARE_NONE,
-            None,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            None,
-        )
-    }
-}
-
 fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core::Result<()> {
-    // TODO: Handle configuring buffers from config
     let mut bytes_returned: u32 = 0;
-    let input_buffer = build_input_buffer(ioctl).unwrap();
-    let output_buffer: [u8; 0] = [];
+    let input_buffer = build_input_buffer(ioctl).unwrap(); // TODO: Handle this properly.
+    let output_buffer = vec![0; ioctl.output_buffer_size];
+
+    println!("Sending input buffer...");
 
     unsafe {
         DeviceIoControl(
@@ -53,8 +53,18 @@ fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core
             ioctl.output_buffer_size.try_into()?,
             Some(&mut bytes_returned),
             None,
-        )
+        )?;
     }
+
+    if output_buffer.len() > 0 {
+        if bytes_returned == 0 {
+            println!("No output received.");
+        }
+
+        println!("Output:\n{:X?}\n", output_buffer);
+    }
+
+    Ok(())
 }
 
 fn check_buffer_overwrite(
@@ -71,7 +81,6 @@ fn check_buffer_overwrite(
 fn build_input_buffer(ioctl: &Ioctl) -> Result<Vec<u8>, &'static str> {
     let mut buffer = vec![0; ioctl.input_buffer_size as usize];
 
-    // TODO: Check there are input_buffer_contents
     let buffer_content_entries = match &ioctl.input_buffer_content {
         Some(buffer_content_entries) => buffer_content_entries,
         None => return Ok(buffer),
@@ -184,5 +193,37 @@ mod tests {
         let input_buffer: Vec<u8> = build_input_buffer(&ioctl).unwrap();
 
         assert_eq!(correct_buffer, input_buffer);
+    }
+
+    #[test]
+    fn build_buffer_no_entries() {
+        let ioctl = Ioctl {
+            code: 0x10000,
+            name: "IOCTL_TEST".to_string(),
+            input_buffer_size: 0x60,
+            output_buffer_size: 0x8,
+            input_buffer_content: None,
+        };
+
+        let correct_buffer = vec![0; 0x60];
+
+        let input_buffer: Vec<u8> = build_input_buffer(&ioctl).unwrap();
+
+        assert_eq!(correct_buffer, input_buffer);
+    }
+
+    #[test]
+    fn check_buffer_overwrite_success() {
+        assert_eq!(Ok(()), check_buffer_overwrite(0x18, 0x4, 0x40));
+    }
+
+    #[test]
+    fn check_buffer_overwrite_oob_offset() {
+        assert!(check_buffer_overwrite(0x100, 0x1, 0x60).is_err());
+    }
+
+    #[test]
+    fn check_buffer_overwrite_oob_combined() {
+        assert!(check_buffer_overwrite(0x20, 0x10, 0x28).is_err());
     }
 }
