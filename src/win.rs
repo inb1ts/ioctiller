@@ -15,7 +15,7 @@ pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<
     unsafe {
         device_handle = CreateFileW(
             device_name_arg,
-            GENERIC_READ.0 | GENERIC_WRITE.0 | DELETE.0,
+            GENERIC_READ.0 | GENERIC_WRITE.0, // This will need to be configurable.
             FILE_SHARE_NONE,
             None,
             OPEN_EXISTING,

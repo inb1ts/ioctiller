@@ -122,35 +122,4 @@ mod tests {
 
         assert!(Cli::build(&args).is_err());
     }
-
-    // TODO: Remove
-    // #[test]
-    // fn config_load_valid_file() {
-    //     let mut config = Config {
-    //         file_contents: "\
-    //         [device]
-    //         name = \"\\\\.\\TestDriver\"
-    //
-    //         [[ioctl]]
-    //         name = \"IOCTL_1\"
-    //         code = 0x220004
-    //         input_buffer_size = 64
-    //         output_buffer_size = 128
-    //
-    //         [[iotctl]]
-    //         name = \"IOCTL_2\"
-    //         code = 0x220008
-    //         input_buffer_size = 32
-    //         output_buffer_size = 64
-    //
-    //         [[ioctl]]
-    //         name = \"IOCTL_3\"
-    //         code = 0x22000C
-    //         input_buffer_size = 0
-    //         output_buffer_size = 256"
-    //             .to_string(),
-    //     };
-    //
-    //     config.load()
-    // }
 }
