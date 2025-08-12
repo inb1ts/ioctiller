@@ -1,12 +1,11 @@
 use serde::Deserialize;
 use std::error::Error;
 use std::fs;
-use std::io;
 
 pub mod win;
 
 pub struct Cli {
-    file_path: std::path::PathBuf,
+    pub file_path: std::path::PathBuf,
 }
 
 impl Cli {
@@ -61,6 +60,12 @@ impl Config {
         let config: Config = toml::from_str(&toml_contents)?;
 
         Ok(config)
+    }
+
+    pub fn print_inputs(&self) {
+        for (i, ioctl) in self.ioctls.iter().enumerate() {
+            println!("[{i}]: {}(0x{:X})", ioctl.name, ioctl.code);
+        }
     }
 }
 
@@ -130,31 +135,19 @@ fn check_buffer_overwrite(
     Ok(())
 }
 
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    println!("Please select the IOCTL to send:\n");
-    let ioctls_count = config.ioctls.len();
-
-    for (i, ioctl) in config.ioctls.iter().enumerate() {
-        println!("[{i}]: {}(0x{:X})", ioctl.name, ioctl.code);
-    }
-    println!("\nInput: ");
-
-    let mut input = String::new();
-
-    io::stdin().read_line(&mut input)?;
-
-    // TODO: Can I use match here?
-    let input: usize = input.trim().parse()?;
-    if input > ioctls_count - 1 {
-        return Err("input provided was not valid index".into());
-    }
-
-    let selected_ioctl: &Ioctl = &config.ioctls[input];
-
-    win::send_ioctl(&config.device_name, selected_ioctl)?;
-
-    Ok(())
+pub trait Dispatcher {
+    fn dispatch(&self) -> windows::core::Result<()>;
 }
+
+pub fn send(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
+    dispatcher.dispatch()
+}
+
+// pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+//     win::send_ioctl(&config.device_name, selected_ioctl)?;
+//
+//     Ok(())
+// }
 
 #[cfg(test)]
 mod tests {

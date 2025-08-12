@@ -15,8 +15,24 @@ fn main() {
         process::exit(1);
     });
 
-    if let Err(e) = ioctiller::run(config) {
-        eprintln!("Error running ioctiller: {e}");
+    println!("Please select the IOCTL to send:\n");
+    config.print_inputs();
+    println!("\nInput: ");
+
+    let mut input = String::new();
+
+    io::stdin().read_line(&mut input)?;
+
+    let input: usize = input.trim().parse()?;
+    if input > ioctls_count - 1 {
+        eprint!("input provided was not valid index");
         process::exit(1);
     }
+
+    // let selected_ioctl: &Ioctl = &config.ioctls[input];
+
+    // if let Err(e) = ioctiller::run(config) {
+    //     eprintln!("Error running ioctiller: {e}");
+    //     process::exit(1);
+    // }
 }
