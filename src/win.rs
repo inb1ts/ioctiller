@@ -42,6 +42,8 @@ fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core
     let output_buffer = vec![0; ioctl.output_buffer_size];
 
     println!("Sending input buffer...");
+    println!("Input:\n{:X?}\n", input_buffer);
+    println!("IOCTL:\n{:X?}\n", ioctl);
 
     unsafe {
         DeviceIoControl(

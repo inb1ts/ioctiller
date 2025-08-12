@@ -187,4 +187,110 @@ mod tests {
 
         assert!(Cli::build(&args).is_err());
     }
+
+    #[test]
+    fn build_buffer_success() {
+        let ioctl = Ioctl {
+            code: 0x10000,
+            name: "IOCTL_TEST".to_string(),
+            input_buffer_size: 0x70,
+            output_buffer_size: 0x8,
+            input_buffer_content: Some(vec![
+                BufferContentEntry {
+                    offset: 0x0,
+                    entry_data: EntryData::U32 { value: 0x1337C0DE },
+                },
+                BufferContentEntry {
+                    offset: 0x10,
+                    entry_data: EntryData::U64 {
+                        value: 0xDEADBEEFCAFEBABE,
+                    },
+                },
+                BufferContentEntry {
+                    offset: 0x20,
+                    entry_data: EntryData::U8 { value: 0x41 },
+                },
+                BufferContentEntry {
+                    offset: 0x28,
+                    entry_data: EntryData::U16 { value: 0x5A4D },
+                },
+                BufferContentEntry {
+                    offset: 0x30,
+                    entry_data: EntryData::String8 {
+                        value: "foobar".to_string(),
+                    },
+                },
+                BufferContentEntry {
+                    offset: 0x40,
+                    entry_data: EntryData::Fill {
+                        value: 0x24,
+                        length: 0x30,
+                    },
+                },
+            ]),
+        };
+
+        let correct_buffer = vec![
+            0xDE, 0xC0, 0x37, 0x13, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0xBE, 0xBA, 0xFE, 0xCA, 0xEF, 0xBE, 0xAD, 0xDE, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x41, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4D, 0x5A, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+            0x24, 0x24, 0x24, 0x24, 0x24, 0x24,
+        ];
+
+        let input_buffer: Vec<u8> = ioctl.build_input_buffer().unwrap();
+
+        assert_eq!(correct_buffer, input_buffer);
+    }
+
+    #[test]
+    fn build_buffer_no_entries() {
+        let ioctl = Ioctl {
+            code: 0x10000,
+            name: "IOCTL_TEST".to_string(),
+            input_buffer_size: 0x60,
+            output_buffer_size: 0x8,
+            input_buffer_content: None,
+        };
+
+        let correct_buffer = vec![0; 0x60];
+
+        let input_buffer: Vec<u8> = ioctl.build_input_buffer().unwrap();
+
+        assert_eq!(correct_buffer, input_buffer);
+    }
+
+    #[test]
+    fn build_buffer_oob() {
+        let ioctl = Ioctl {
+            code: 0x10000,
+            name: "IOCTL_TEST".to_string(),
+            input_buffer_size: 0x60,
+            output_buffer_size: 0x8,
+            input_buffer_content: Some(vec![BufferContentEntry {
+                offset: 0x60,
+                entry_data: EntryData::U32 { value: 0x1337C0DE },
+            }]),
+        };
+
+        assert!(ioctl.build_input_buffer().is_err());
+    }
+
+    #[test]
+    fn check_buffer_overwrite_success() {
+        assert_eq!(Ok(()), check_buffer_overwrite(0x18, 0x4, 0x40));
+    }
+
+    #[test]
+    fn check_buffer_overwrite_oob_offset() {
+        assert!(check_buffer_overwrite(0x100, 0x1, 0x60).is_err());
+    }
+
+    #[test]
+    fn check_buffer_overwrite_oob_combined() {
+        assert!(check_buffer_overwrite(0x20, 0x10, 0x28).is_err());
+    }
 }

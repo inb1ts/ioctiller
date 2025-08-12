@@ -28,12 +28,12 @@ Each `ioctls` section will then be optionally followed by as many `input_buffer_
 These entries specify:
 - `offset`: The offset, in bytes, from the beginning of the input buffer, that this entry should be written
 - `type`: A string of the type of value that should be written. This can be one of the following:
-- - `"u8"`
-- - `"u16"`
-- - `"u32"`
-- - `"u64"`
-- - `"string8"`
-- - `"fill"`
+- - `"U8"`
+- - `"U16"`
+- - `"U32"`
+- - `"U64"`
+- - `"STRING8"`
+- - `"FILL"`
 - `value`: The actual value of the entry to be written to the input buffer.
 - `length` (for `fill` only): How many bytes should be filled with the `char` in `value`.
 
@@ -47,28 +47,19 @@ name = "IOCTL_1"
 code = 0x10000
 input_buffer_size = 64
 output_buffer_size = 128
-
-[[ioctl.input_buffer_content]]
-offset = 0x10
-type="u8"
-value=0x41
+input_buffer_content = [
+    { offset = 0x10, type="U8", value=0x41 }
+]
 
 [[ioctls]]
 name = "IOCTL_2"
 code = 0x220008
 input_buffer_size = 32
 output_buffer_size = 64
-
-[[ioctl.input_buffer_content]]
-offset=0x0
-type="fill"
-value=0x41
-length=0x20
-
-[[ioctl.input_buffer_content]]
-offset=0x38
-type="string8"
-value="foobar"
+input_buffer_content = [
+    { offset=0x0, type="FILL", value=0x41 },
+    { offset=0x38, type="STRING8", value="foobar" }
+]
 
 [[ioctls]]
 name = "IOCTL_3"
