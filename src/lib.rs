@@ -55,7 +55,6 @@ pub enum EntryData {
 }
 
 impl Config {
-    // TODO: is it bad pratice to have two possible error types returned here?
     pub fn build(cli: &Cli) -> Result<Config, Box<dyn Error>> {
         let toml_contents = fs::read_to_string(&cli.file_path)?;
 
@@ -63,6 +62,72 @@ impl Config {
 
         Ok(config)
     }
+}
+
+impl Ioctl {
+    pub fn build_input_buffer(&self) -> Result<Vec<u8>, &'static str> {
+        let mut buffer = vec![0; self.input_buffer_size as usize];
+
+        let buffer_content_entries = match &self.input_buffer_content {
+            Some(buffer_content_entries) => buffer_content_entries,
+            None => return Ok(buffer),
+        };
+
+        for entry in buffer_content_entries {
+            match &entry.entry_data {
+                crate::EntryData::U8 { value } => {
+                    check_buffer_overwrite(entry.offset, size_of::<u8>(), self.input_buffer_size)?;
+
+                    buffer[entry.offset as usize] = *value;
+                }
+                crate::EntryData::U16 { value } => {
+                    let u16_size = size_of::<u16>();
+                    check_buffer_overwrite(entry.offset, u16_size, self.input_buffer_size)?;
+
+                    buffer[entry.offset..entry.offset + u16_size]
+                        .copy_from_slice(&(*value).to_le_bytes());
+                }
+                crate::EntryData::U32 { value } => {
+                    let u32_size = size_of::<u32>();
+                    check_buffer_overwrite(entry.offset, u32_size, self.input_buffer_size)?;
+
+                    buffer[entry.offset..entry.offset + u32_size]
+                        .copy_from_slice(&(*value).to_le_bytes());
+                }
+                crate::EntryData::U64 { value } => {
+                    let u64_size = size_of::<u64>();
+                    check_buffer_overwrite(entry.offset, u64_size, self.input_buffer_size)?;
+
+                    buffer[entry.offset..entry.offset + u64_size]
+                        .copy_from_slice(&(*value).to_le_bytes());
+                }
+                crate::EntryData::String8 { value } => {
+                    let str_size = value.len();
+                    check_buffer_overwrite(entry.offset, str_size, self.input_buffer_size)?;
+
+                    buffer[entry.offset..entry.offset + str_size].copy_from_slice(value.as_bytes());
+                }
+                crate::EntryData::Fill { value, length } => {
+                    check_buffer_overwrite(entry.offset, *length, self.input_buffer_size)?;
+
+                    buffer[entry.offset..entry.offset + length].fill(*value);
+                }
+            }
+        }
+
+        Ok(buffer)
+    }
+}
+
+fn check_buffer_overwrite(
+    offset: usize,
+    entry_size: usize,
+    buffer_size: usize,
+) -> Result<(), &'static str> {
+    if (offset + entry_size) > buffer_size {
+        return Err("Input buffer entry content is out of bounds");
+    }
+    Ok(())
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
