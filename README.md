@@ -57,8 +57,8 @@ code = 0x220008
 input_buffer_size = 32
 output_buffer_size = 64
 input_buffer_content = [
-    { offset=0x0, type="FILL", value=0x41 },
-    { offset=0x38, type="STRING8", value="foobar" }
+    { offset=0x0, type="Fill", value=0x41 },
+    { offset=0x38, type="String8", value="foobar" }
 ]
 
 [[ioctls]]
