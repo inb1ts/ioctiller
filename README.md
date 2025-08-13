@@ -33,7 +33,7 @@ These entries specify:
 - - `"U32"`
 - - `"U64"`
 - - `"String8"`
-- - `"FILL"`
+- - `"Fill"`
 - `value`: The actual value of the entry to be written to the input buffer.
 - `length` (for `fill` only): How many bytes should be filled with the `char` in `value`.
 
