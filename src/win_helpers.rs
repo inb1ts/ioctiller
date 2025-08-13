@@ -1,23 +1,11 @@
 use super::Ioctl;
-use crate::Dispatcher;
 use windows::{
     Win32::Foundation::*, Win32::Storage::FileSystem::*, Win32::System::IO::DeviceIoControl,
     core::PCWSTR,
 };
 use windows_strings::HSTRING;
 
-pub struct IoctlDispatcher<'a> {
-    pub device_name: String,
-    pub ioctl: &'a Ioctl,
-}
-
-impl<'a> Dispatcher for IoctlDispatcher<'a> {
-    fn dispatch(&self) -> windows::core::Result<()> {
-        send_ioctl(&self.device_name, &self.ioctl)
-    }
-}
-
-fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<()> {
+pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<()> {
     println!("Sending {} to {}", ioctl.name, device_name);
 
     let device_handle: HANDLE;

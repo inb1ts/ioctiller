@@ -1,8 +1,10 @@
+use crate::dispatch::Dispatcher;
 use serde::Deserialize;
 use std::error::Error;
 use std::fs;
 
-pub mod win;
+pub mod dispatch;
+pub mod win_helpers;
 
 pub struct Cli {
     pub file_path: std::path::PathBuf,
@@ -135,19 +137,9 @@ fn check_buffer_overwrite(
     Ok(())
 }
 
-pub trait Dispatcher {
-    fn dispatch(&self) -> windows::core::Result<()>;
-}
-
 pub fn send(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
     dispatcher.dispatch()
 }
-
-// pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-//     win::send_ioctl(&config.device_name, selected_ioctl)?;
-//
-//     Ok(())
-// }
 
 #[cfg(test)]
 mod tests {
