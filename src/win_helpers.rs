@@ -38,6 +38,7 @@ pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<
 
 fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core::Result<()> {
     let mut bytes_returned: u32 = 0;
+    // TODO: This needs to be decoupled
     let input_buffer = ioctl.build_input_buffer().unwrap(); // TODO: Handle this properly.
     let output_buffer = vec![0; ioctl.output_buffer_size];
 
