@@ -22,8 +22,8 @@ impl Cli {
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    device_name: String,
-    ioctls: Vec<Ioctl>,
+    pub device_name: String,
+    pub ioctls: Vec<Ioctl>,
 }
 
 #[derive(Debug, Deserialize)]
