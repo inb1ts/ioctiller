@@ -6,6 +6,8 @@ use std::fs;
 pub mod dispatch;
 pub mod win_helpers;
 
+/// Holds commandline arguments.
+/// This currently is only being used for the config file path
 pub struct Cli {
     pub file_path: std::path::PathBuf,
 }
@@ -22,12 +24,14 @@ impl Cli {
     }
 }
 
+/// Configuration struct that the config TOML is serialised into
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub device_name: String,
+    pub device_name: String, // TODO: Move this onto Ioctl, so it's per-call?
     pub ioctls: Vec<Ioctl>,
 }
 
+/// Represents a single IOCTL
 #[derive(Debug, Deserialize)]
 pub struct Ioctl {
     name: String,
@@ -37,6 +41,8 @@ pub struct Ioctl {
     input_buffer_content: Option<Vec<BufferContentEntry>>,
 }
 
+/// Represents a portion of content for a buffer that will be used
+/// to construct the buffer fully before being dispatched
 #[derive(Debug, Deserialize)]
 pub struct BufferContentEntry {
     offset: usize,
@@ -56,6 +62,7 @@ pub enum EntryData {
 }
 
 impl Config {
+    /// Reads an input config TOML file, serialises it, and returns a Config struct
     pub fn build(cli: &Cli) -> Result<Config, Box<dyn Error>> {
         let toml_contents = fs::read_to_string(&cli.file_path)?;
 
@@ -64,6 +71,7 @@ impl Config {
         Ok(config)
     }
 
+    /// Prints the ioctls on the Config struct
     pub fn print_inputs(&self) {
         for (i, ioctl) in self.ioctls.iter().enumerate() {
             println!("[{i}]: {}(0x{:X})", ioctl.name, ioctl.code);
@@ -72,6 +80,9 @@ impl Config {
 }
 
 impl Ioctl {
+    /// Iterates over any input buffer content entries on the Config struct and
+    /// uses them to construct an input buffer of type Vec<u8> that can be used
+    /// in dispatch calls.
     pub fn build_input_buffer(&self) -> Result<Vec<u8>, &'static str> {
         let mut buffer = vec![0; self.input_buffer_size as usize];
 
@@ -126,6 +137,9 @@ impl Ioctl {
     }
 }
 
+/// Helper function to check that a buffer content entry does not exceed the buffer
+/// size. This would error anyway due to Rust's bounds checking, but we handle anyway to
+/// inform the user.
 fn check_buffer_overwrite(
     offset: usize,
     entry_size: usize,
@@ -137,6 +151,7 @@ fn check_buffer_overwrite(
     Ok(())
 }
 
+/// Wrapper around the dispatcher that simply calls the dispatch method.
 pub fn send(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
     dispatcher.dispatch()
 }
