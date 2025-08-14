@@ -5,15 +5,12 @@ use windows::{
 };
 use windows_strings::HSTRING;
 
-pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<()> {
-    println!("Sending {} to {}", ioctl.name, device_name);
-
-    let device_handle: HANDLE;
+pub fn open_device_handle(device_name: &String) -> windows::core::Result<HANDLE> {
     let device_name_arg = HSTRING::from(device_name);
     let device_name_arg = PCWSTR::from_raw(device_name_arg.as_ptr());
 
     unsafe {
-        device_handle = CreateFileW(
+        CreateFileW(
             device_name_arg,
             GENERIC_READ.0 | GENERIC_WRITE.0, // This will need to be configurable.
             FILE_SHARE_NONE,
@@ -21,22 +18,11 @@ pub fn send_ioctl(device_name: &String, ioctl: &Ioctl) -> windows::core::Result<
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             None,
-        )?;
+        )
     }
-
-    send_device_io_control(device_handle, ioctl)?;
-
-    println!("DeviceIoControl called successfully.");
-
-    unsafe {
-        windows::Win32::Foundation::CloseHandle(device_handle)?;
-    }
-
-    println!("Device handle closed successfully.");
-    Ok(())
 }
 
-fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core::Result<()> {
+pub fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core::Result<()> {
     let mut bytes_returned: u32 = 0;
     // TODO: This needs to be decoupled
     let input_buffer = ioctl.build_input_buffer().unwrap(); // TODO: Handle this properly.
