@@ -51,18 +51,24 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
 
 /// Iterates through a buffer in pointer-sized chunks, and checks to see whether
 /// value falls within kernel address range. Returns a vec of (offset, leaked_addr) tuples
-fn check_info_leaks(buffer: &Vec<u8>) -> Vec<(u64, u64)> {
+/// This iterates through the buffer 2-bytes at a time, which is a crude way of increasing the
+/// likelihood of catching things at weird offsets, but reducing some of the false positives from
+/// a 1-byte sliding window
+fn check_info_leaks(buffer: &Vec<u8>) -> Vec<(usize, u64)> {
     let mut found_addresses = Vec::new();
+    const POINTER_SIZE: usize = 8;
 
-    let mut offset = 0;
-    for chunk in buffer.chunks_exact(4) {
-        let potential_addr = u64::from_ne_bytes(chunk.try_into().unwrap());
+    let mut i = 0;
+    while i <= buffer.len().saturating_sub(POINTER_SIZE) {
+        let curr_offset = &buffer[i..i + POINTER_SIZE];
+        let potential_addr = u64::from_ne_bytes(curr_offset.try_into().unwrap());
 
         if potential_addr >= KERNEL_ADDR_MIN {
-            found_addresses.push((offset, potential_addr));
+            found_addresses.push((i, potential_addr));
+            i += POINTER_SIZE;
+        } else {
+            i += 2;
         }
-
-        offset += 8;
     }
 
     found_addresses
@@ -85,7 +91,7 @@ mod tests {
 
         let test_output = check_info_leaks(&test_buffer);
 
-        let correct_output: Vec<(u64, u64)> = vec![
+        let correct_output: Vec<(usize, u64)> = vec![
             (8, 0xFFFFFFFF12345678),
             (64, 0xFFFF800000000000),
             (82, 0xFFFFFF9876543210),
