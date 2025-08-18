@@ -22,13 +22,14 @@ pub fn open_device_handle(device_name: &String) -> windows::core::Result<HANDLE>
     }
 }
 
-pub fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::core::Result<()> {
+pub fn send_device_io_control(
+    device_handle: HANDLE,
+    ioctl: &Ioctl,
+) -> windows::core::Result<Vec<u8>> {
     let mut bytes_returned: u32 = 0;
     // TODO: This needs to be decoupled
     let input_buffer = ioctl.build_input_buffer().unwrap(); // TODO: Handle this properly.
     let output_buffer = vec![0; ioctl.output_buffer_size];
-
-    println!("Sending input buffer...");
 
     unsafe {
         DeviceIoControl(
@@ -51,5 +52,5 @@ pub fn send_device_io_control(device_handle: HANDLE, ioctl: &Ioctl) -> windows::
         println!("Output:\n{:X?}\n", output_buffer);
     }
 
-    Ok(())
+    Ok(output_buffer)
 }
