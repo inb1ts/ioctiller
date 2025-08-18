@@ -2,8 +2,6 @@ use crate::Ioctl;
 use crate::win_helpers::{open_device_handle, send_device_io_control};
 use windows::Win32::Foundation::HANDLE;
 
-const KERNEL_ADDR_MIN: u64 = 0xFFFF800000000000;
-
 /// Describes a struct that can take some form of input and send it to a destination.
 /// Current implementation will cover dispatchers for IOCTLs and Filter Communication Port
 /// messages, but could also extend to other generic OS functionality such as spawning processes.
@@ -61,8 +59,10 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
 /// likelihood of catching things at weird offsets, but reducing some of the false positives from
 /// a 1-byte sliding window
 fn check_info_leaks(buffer: &Vec<u8>) -> Option<Vec<(usize, u64)>> {
-    let mut found_addresses = Vec::new();
+    const KERNEL_ADDR_MIN: u64 = 0xFFFF800000000000;
     const POINTER_SIZE: usize = 8;
+
+    let mut found_addresses = Vec::new();
 
     let mut i = 0;
     while i <= buffer.len().saturating_sub(POINTER_SIZE) {

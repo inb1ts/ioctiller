@@ -27,7 +27,6 @@ pub fn send_device_io_control(
     ioctl: &Ioctl,
 ) -> windows::core::Result<Vec<u8>> {
     let mut bytes_returned: u32 = 0;
-    // TODO: This needs to be decoupled
     let input_buffer = ioctl.build_input_buffer().unwrap(); // TODO: Handle this properly.
     let output_buffer = vec![0; ioctl.output_buffer_size];
 
@@ -42,14 +41,6 @@ pub fn send_device_io_control(
             Some(&mut bytes_returned),
             None,
         )?;
-    }
-
-    if output_buffer.len() > 0 {
-        if bytes_returned == 0 {
-            println!("No output received.");
-        }
-
-        println!("Output:\n{:X?}\n", output_buffer);
     }
 
     Ok(output_buffer)

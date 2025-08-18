@@ -1,6 +1,7 @@
 use crate::dispatch::Dispatcher;
 use serde::Deserialize;
 use std::error::Error;
+use std::fmt;
 use std::fs;
 
 pub mod dispatch;
@@ -25,14 +26,14 @@ impl Cli {
 }
 
 /// Configuration struct that the config TOML is serialised into
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub device_name: String, // TODO: Move this onto Ioctl, so it's per-call?
     pub ioctls: Vec<Ioctl>,
 }
 
 /// Represents a single IOCTL
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Ioctl {
     name: String,
     code: u32,
@@ -41,16 +42,22 @@ pub struct Ioctl {
     input_buffer_content: Option<Vec<BufferContentEntry>>,
 }
 
+impl fmt::Display for Ioctl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:0x{:X}", self.name, self.code)
+    }
+}
+
 /// Represents a portion of content for a buffer that will be used
 /// to construct the buffer fully before being dispatched
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct BufferContentEntry {
     offset: usize,
     #[serde(flatten)]
     entry_data: EntryData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum EntryData {
     U8 { value: u8 },
