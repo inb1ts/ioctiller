@@ -19,7 +19,8 @@ fn main() {
         process::exit(1);
     });
 
-    // Prompt user to select IOCTL to send
+    // Inquire's Select option requires that the option vec is moved. Therefore we clone it,
+    // and then the selected IOCTL is just returned from the clone
     let config_clone = config.clone();
 
     let selected_ioctl: Ioctl = Select::new("Please select the IOCTL to send", config_clone.ioctls)
