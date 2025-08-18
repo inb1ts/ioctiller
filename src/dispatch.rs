@@ -39,6 +39,12 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
 
         if output_buffer.len() > 0 {
             println!("Output:\n{:X?}\n", output_buffer);
+
+            if let Some(possible_info_leaks) = check_info_leaks(&output_buffer) {
+                for leak in possible_info_leaks {
+                    println!("Possible leak at {}: {}", leak.0, leak.1);
+                }
+            }
         } else {
             println!("No output buffer received");
         }
@@ -54,7 +60,7 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
 /// This iterates through the buffer 2-bytes at a time, which is a crude way of increasing the
 /// likelihood of catching things at weird offsets, but reducing some of the false positives from
 /// a 1-byte sliding window
-fn check_info_leaks(buffer: &Vec<u8>) -> Vec<(usize, u64)> {
+fn check_info_leaks(buffer: &Vec<u8>) -> Option<Vec<(usize, u64)>> {
     let mut found_addresses = Vec::new();
     const POINTER_SIZE: usize = 8;
 
@@ -71,11 +77,17 @@ fn check_info_leaks(buffer: &Vec<u8>) -> Vec<(usize, u64)> {
         }
     }
 
-    found_addresses
+    if found_addresses.len() == 0 {
+        return None;
+    }
+
+    Some(found_addresses)
 }
 
 #[cfg(test)]
 mod tests {
+    use core::panic;
+
     use super::*;
 
     #[test]
@@ -89,8 +101,6 @@ mod tests {
             0xFF, 0xFF,
         ];
 
-        let test_output = check_info_leaks(&test_buffer);
-
         let correct_output: Vec<(usize, u64)> = vec![
             (8, 0xFFFFFFFF12345678),
             (64, 0xFFFF800000000000),
@@ -99,6 +109,10 @@ mod tests {
             (102, 0xFFFFFFFF526ABE24),
         ];
 
-        assert_eq!(correct_output, test_output);
+        if let Some(test_output) = check_info_leaks(&test_buffer) {
+            assert_eq!(correct_output, test_output)
+        } else {
+            panic!("No info leaks found")
+        }
     }
 }
