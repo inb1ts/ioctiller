@@ -23,9 +23,17 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
     fn dispatch(&self) -> windows::core::Result<()> {
         println!("Sending {} to {}", self.ioctl.name, self.device_name);
 
-        let device_handle: HANDLE = open_device_handle(&self.device_name)?;
+        let device_handle: HANDLE = open_device_handle(&self.device_name, self.ioctl.overlapped)?;
 
-        let output_buffer = send_device_io_control(device_handle, self.ioctl)?;
+        let input_buffer = self.ioctl.build_input_buffer().unwrap();
+
+        let output_buffer = send_device_io_control(
+            device_handle,
+            self.ioctl.code,
+            input_buffer,
+            self.ioctl.input_buffer_size,
+            self.ioctl.output_buffer_size,
+        )?;
 
         println!("DeviceIoControl called successfully.");
 

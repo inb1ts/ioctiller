@@ -37,6 +37,8 @@ pub struct Config {
 pub struct Ioctl {
     name: String,
     code: u32,
+    #[serde(default)]
+    overlapped: bool,
     input_buffer_size: usize,
     output_buffer_size: usize,
     input_buffer_content: Option<Vec<BufferContentEntry>>,
@@ -159,8 +161,12 @@ fn check_buffer_overwrite(
 }
 
 /// Wrapper around the dispatcher that simply calls the dispatch method.
-pub fn send(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
+pub fn send_single(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
     dispatcher.dispatch()
+}
+
+pub fn fuzz_single(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
+    Ok(())
 }
 
 #[cfg(test)]
@@ -199,6 +205,7 @@ mod tests {
     fn build_buffer_success() {
         let ioctl = Ioctl {
             code: 0x10000,
+            overlapped: false,
             name: "IOCTL_TEST".to_string(),
             input_buffer_size: 0x70,
             output_buffer_size: 0x8,
@@ -257,6 +264,7 @@ mod tests {
     fn build_buffer_no_entries() {
         let ioctl = Ioctl {
             code: 0x10000,
+            overlapped: false,
             name: "IOCTL_TEST".to_string(),
             input_buffer_size: 0x60,
             output_buffer_size: 0x8,
@@ -274,6 +282,7 @@ mod tests {
     fn build_buffer_oob() {
         let ioctl = Ioctl {
             code: 0x10000,
+            overlapped: false,
             name: "IOCTL_TEST".to_string(),
             input_buffer_size: 0x60,
             output_buffer_size: 0x8,

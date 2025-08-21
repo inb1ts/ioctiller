@@ -46,7 +46,7 @@ fn load_config() {
         ioctl: selected_ioctl,
     };
 
-    if let Err(e) = ioctiller::send(&test_dispatcher) {
+    if let Err(e) = ioctiller::send_single(&test_dispatcher) {
         panic!("Error calling send with test_dispatcher: {e}");
     }
 }
