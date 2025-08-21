@@ -1,6 +1,9 @@
 use windows::{
-    Win32::Foundation::*, Win32::Storage::FileSystem::*, Win32::System::IO::*,
-    Win32::System::Threading::CreateEventW, core::PCWSTR,
+    Win32::Foundation::*,
+    Win32::Storage::FileSystem::*,
+    Win32::System::IO::*,
+    Win32::System::Threading::{CreateEventW, WaitForSingleObject},
+    core::PCWSTR,
 };
 use windows_strings::HSTRING;
 
@@ -64,7 +67,7 @@ pub fn send_device_io_control_overlapped(
     let output_buffer = vec![0; output_buffer_size];
 
     unsafe {
-        let mut overlapped_obj = OVERLAPPED {
+        let mut overlapped = OVERLAPPED {
             Anonymous: OVERLAPPED_0 {
                 Anonymous: OVERLAPPED_0_0 {
                     Offset: 0,
@@ -84,9 +87,15 @@ pub fn send_device_io_control_overlapped(
             Some(output_buffer.as_ptr() as *mut _),
             output_buffer_size.try_into()?,
             Some(&mut bytes_returned),
-            Some(&mut overlapped_obj),
+            Some(&mut overlapped),
         )?;
-    }
 
+        if wait_overlapped {
+            WaitForSingleObject(overlapped.hEvent, 2000);
+
+            let mut bytes_copied = 0;
+            GetOverlappedResult(device_handle, &overlapped, &mut bytes_copied, false)?;
+        }
+    }
     Ok(output_buffer)
 }
