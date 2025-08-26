@@ -94,18 +94,23 @@ impl<'a> Dispatcher for FuzzIoctlDispatcher<'a> {
                 &mutator.input,
                 self.ioctl.input_buffer_size,
                 self.ioctl.output_buffer_size,
-            )?;
+            );
+
+            match output_buffer {
+                Ok(output_buffer) => {
+                    if output_buffer.len() > 0 {
+                        if let Some(possible_info_leaks) = check_info_leaks(&output_buffer) {
+                            for leak in possible_info_leaks {
+                                println!("Possible leak at {}: {}", leak.0, leak.1);
+                            }
+                        }
+                    }
+                }
+                Err(_) => (),
+            }
 
             unsafe {
                 windows::Win32::Foundation::CloseHandle(device_handle)?;
-            }
-
-            if output_buffer.len() > 0 {
-                if let Some(possible_info_leaks) = check_info_leaks(&output_buffer) {
-                    for leak in possible_info_leaks {
-                        println!("Possible leak at {}: {}", leak.0, leak.1);
-                    }
-                }
             }
         }
 
