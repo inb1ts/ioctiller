@@ -1,5 +1,5 @@
 use inquire::Select;
-use ioctiller::dispatch::IoctlDispatcher;
+use ioctiller::dispatch::{FuzzIoctlDispatcher, SingleIoctlDispatcher};
 use ioctiller::{Cli, Config, Ioctl};
 use std::env;
 use std::process;
@@ -35,7 +35,7 @@ fn main() {
                     .prompt()
                     .expect("Error selecting IOCTL");
 
-            let ioctl_dispatcher = IoctlDispatcher {
+            let ioctl_dispatcher = SingleIoctlDispatcher {
                 device_name: config.device_name,
                 ioctl: &selected_ioctl,
             };
@@ -46,7 +46,21 @@ fn main() {
             }
         }
         "Fuzz single" => {
-            unimplemented!("Fuzz single is not yet implemented");
+            let config_clone = config.clone();
+            let selected_ioctl: Ioctl =
+                Select::new("Please select the IOCTL to fuzz", config_clone.ioctls)
+                    .prompt()
+                    .expect("Error selecting IOCTL");
+
+            let ioctl_dispatcher = FuzzIoctlDispatcher {
+                device_name: config.device_name,
+                ioctl: &selected_ioctl,
+            };
+
+            if let Err(e) = ioctiller::send_single(&ioctl_dispatcher) {
+                eprintln!("Error running ioctiller: {e}");
+                process::exit(1);
+            }
         }
         "Fuzz multiple" => {
             unimplemented!("Fuzz multiple is not yet implemented");

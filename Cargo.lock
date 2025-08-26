@@ -9,6 +9,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "basic_mutator"
+version = "0.1.0"
+source = "git+https://github.com/gamozolabs/basic_mutator#3f1d783243362d685bf80a1f9b30767a18172e6f"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -124,6 +129,7 @@ dependencies = [
 name = "ioctiller"
 version = "0.1.0"
 dependencies = [
+ "basic_mutator",
  "inquire",
  "serde",
  "toml",

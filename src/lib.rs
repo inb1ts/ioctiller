@@ -165,10 +165,6 @@ pub fn send_single(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
     dispatcher.dispatch()
 }
 
-pub fn fuzz_single(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

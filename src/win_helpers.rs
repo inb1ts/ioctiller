@@ -32,7 +32,7 @@ pub fn open_device_handle(device_name: &String, overlapped: bool) -> windows::co
 pub fn send_device_io_control(
     device_handle: HANDLE,
     ioctl_code: u32,
-    input_buffer: Vec<u8>,
+    input_buffer: &Vec<u8>,
     input_buffer_size: usize,
     output_buffer_size: usize,
 ) -> windows::core::Result<Vec<u8>> {
@@ -58,7 +58,7 @@ pub fn send_device_io_control(
 pub fn send_device_io_control_overlapped(
     device_handle: HANDLE,
     ioctl_code: u32,
-    input_buffer: Vec<u8>,
+    input_buffer: &Vec<u8>,
     input_buffer_size: usize,
     output_buffer_size: usize,
     wait_overlapped: bool,
@@ -96,6 +96,8 @@ pub fn send_device_io_control_overlapped(
             let mut bytes_copied = 0;
             GetOverlappedResult(device_handle, &overlapped, &mut bytes_copied, false)?;
         }
+        // How do we actually handle not waiting...
     }
+
     Ok(output_buffer)
 }

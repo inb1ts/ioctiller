@@ -1,5 +1,6 @@
 use crate::Ioctl;
 use crate::win_helpers::{open_device_handle, send_device_io_control};
+use basic_mutator::{EmptyDatabase, Mutator};
 use windows::Win32::Foundation::HANDLE;
 
 /// Describes a struct that can take some form of input and send it to a destination.
@@ -14,12 +15,12 @@ pub trait Dispatcher {
 
 /// Dispatcher used to call DeviceIoControl in order to send an IRP to a specified
 /// IOCTL for a driver.
-pub struct IoctlDispatcher<'a> {
+pub struct SingleIoctlDispatcher<'a> {
     pub device_name: String,
     pub ioctl: &'a Ioctl,
 }
 
-impl<'a> Dispatcher for IoctlDispatcher<'a> {
+impl<'a> Dispatcher for SingleIoctlDispatcher<'a> {
     fn dispatch(&self) -> windows::core::Result<()> {
         println!("Sending {} to {}", self.ioctl.name, self.device_name);
 
@@ -30,7 +31,7 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
         let output_buffer = send_device_io_control(
             device_handle,
             self.ioctl.code,
-            input_buffer,
+            &input_buffer,
             self.ioctl.input_buffer_size,
             self.ioctl.output_buffer_size,
         )?;
@@ -53,6 +54,59 @@ impl<'a> Dispatcher for IoctlDispatcher<'a> {
             }
         } else {
             println!("No output buffer received");
+        }
+
+        Ok(())
+    }
+}
+
+pub struct FuzzIoctlDispatcher<'a> {
+    pub device_name: String,
+    pub ioctl: &'a Ioctl,
+}
+
+impl<'a> Dispatcher for FuzzIoctlDispatcher<'a> {
+    fn dispatch(&self) -> windows::core::Result<()> {
+        println!(
+            "Starting to fuzz {} with {}",
+            self.device_name, self.ioctl.name
+        );
+
+        let seed_input_buffer = self.ioctl.build_input_buffer().unwrap();
+
+        let mut mutator = Mutator::new()
+            .seed(0x50BA5EDF001)
+            .max_input_size(self.ioctl.input_buffer_size)
+            .printable(false);
+
+        for _ in 0..1000000 {
+            mutator.input.clear();
+            mutator.input.extend_from_slice(&seed_input_buffer);
+
+            mutator.mutate(4, &EmptyDatabase);
+
+            let device_handle: HANDLE =
+                open_device_handle(&self.device_name, self.ioctl.overlapped)?;
+
+            let output_buffer = send_device_io_control(
+                device_handle,
+                self.ioctl.code,
+                &mutator.input,
+                self.ioctl.input_buffer_size,
+                self.ioctl.output_buffer_size,
+            )?;
+
+            unsafe {
+                windows::Win32::Foundation::CloseHandle(device_handle)?;
+            }
+
+            if output_buffer.len() > 0 {
+                if let Some(possible_info_leaks) = check_info_leaks(&output_buffer) {
+                    for leak in possible_info_leaks {
+                        println!("Possible leak at {}: {}", leak.0, leak.1);
+                    }
+                }
+            }
         }
 
         Ok(())
