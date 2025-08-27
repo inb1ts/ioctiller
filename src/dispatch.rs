@@ -79,7 +79,7 @@ impl<'a> Dispatcher for FuzzIoctlDispatcher<'a> {
             .max_input_size(self.ioctl.input_buffer_size)
             .printable(false);
 
-        for _ in 0..1000000 {
+        loop {
             mutator.input.clear();
             mutator.input.extend_from_slice(&seed_input_buffer);
 

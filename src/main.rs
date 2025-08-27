@@ -1,4 +1,4 @@
-use inquire::Select;
+use inquire::{MultiSelect, Select, list_option::ListOption, validator::Validation};
 use ioctiller::dispatch::{FuzzIoctlDispatcher, SingleIoctlDispatcher};
 use ioctiller::{Cli, Config, Ioctl};
 use std::env;
@@ -63,7 +63,34 @@ fn main() {
             }
         }
         "Fuzz multiple" => {
-            unimplemented!("Fuzz multiple is not yet implemented");
+            let config_clone = config.clone();
+
+            let validator = |a: &[ListOption<&Ioctl>]| {
+                if a.len() < 2 {
+                    return Ok(Validation::Invalid("This list is too small".into()));
+                }
+
+                Ok(Validation::Valid)
+            };
+
+            let ans = MultiSelect::new(
+                "Select the IOCTLS you would like to fuzz together:",
+                config_clone.ioctls,
+            )
+            .with_validator(validator)
+            .prompt();
+
+            match ans {
+                Ok(ioctls) => {
+                    for ioctl in ioctls {
+                        println!("{:?}", ioctl)
+                    }
+                }
+                Err(_) => {
+                    eprintln!("Error processing multiple fuzz options");
+                    process::exit(1);
+                }
+            }
         }
         _ => {
             eprintln!("Did not recognise mode option: {mode}");
