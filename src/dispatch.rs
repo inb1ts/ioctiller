@@ -79,7 +79,7 @@ impl Dispatcher for FuzzIoctlDispatcher {
         let seed_input_buffer = self.ioctl.build_input_buffer().unwrap();
 
         let mut mutator = Mutator::new()
-            .seed(0x50BA5EDF001)
+            .seed(0x50BA5EDF001) // TODO: Provide this somewhere
             .max_input_size(self.ioctl.input_buffer_size)
             .printable(false);
 

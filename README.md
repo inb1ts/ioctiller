@@ -1,6 +1,6 @@
 # Ioctiller
 
-Simple tool to assist in manually testing Windows drivers. This is essentially just a wrapper around `DeviceIoControl`, where the input buffer size and contents are specified in a TOML file. The aim of this is to simply ease testing for vulns without having to recompile frequently or repetitively move tools between host and target.
+WIP tool that I am using to learn rust and assist in manually testing Windows drivers. This is essentially just a wrapper around `DeviceIoControl`, where the input buffer size and contents are specified in a TOML file. The aim of this is to simply ease testing for vulns without having to recompile frequently or repetitively move tools between host and target.
 
 The workflow I currently use this in is to have the config TOML in a folder that is shared between the host and target machine. I can then update the TOML whilst working through the driver in Binja, and then switch over to actually send requests quite quickly.
 
