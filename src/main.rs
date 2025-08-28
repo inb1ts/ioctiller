@@ -1,4 +1,4 @@
-use inquire::{MultiSelect, Select, list_option::ListOption, validator::Validation};
+use inquire::{MultiSelect, Select, list_option::ListOption, prompt_u32, validator::Validation};
 use ioctiller::dispatch::{FuzzIoctlDispatcher, SingleIoctlDispatcher};
 use ioctiller::{Cli, Config, Ioctl};
 use std::env;
@@ -52,12 +52,19 @@ fn main() {
                     .prompt()
                     .expect("Error selecting IOCTL");
 
+            let num_threads = prompt_u32("Number of threads:").expect("Invalid number of threads");
+
+            if num_threads == 0 {
+                eprintln!("Number of threads cannot be 0");
+                process::exit(1);
+            }
+
             let ioctl_dispatcher = FuzzIoctlDispatcher {
-                device_name: config.device_name,
-                ioctl: &selected_ioctl,
+                device_name: config_clone.device_name,
+                ioctl: selected_ioctl,
             };
 
-            if let Err(e) = ioctiller::send_single(&ioctl_dispatcher) {
+            if let Err(e) = ioctiller::fuzz_single(ioctl_dispatcher, num_threads) {
                 eprintln!("Error running ioctiller: {e}");
                 process::exit(1);
             }
@@ -82,8 +89,20 @@ fn main() {
 
             match ans {
                 Ok(ioctls) => {
+                    // TODO: This currently won't generic input types (when we need to account for
+                    // FilterCommPort messages
+                    let mut dispatchers: Vec<FuzzIoctlDispatcher> = vec![];
+
                     for ioctl in ioctls {
-                        println!("{:?}", ioctl)
+                        dispatchers.push(FuzzIoctlDispatcher {
+                            device_name: config_clone.device_name.clone(),
+                            ioctl: ioctl,
+                        })
+                    }
+
+                    if let Err(e) = ioctiller::fuzz_multiple(dispatchers) {
+                        eprintln!("Error running fuzz multiple: {e}");
+                        process::exit(1);
                     }
                 }
                 Err(_) => {

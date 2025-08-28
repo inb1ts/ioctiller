@@ -1,4 +1,5 @@
 use crate::Ioctl;
+use crate::thread;
 use crate::win_helpers::{open_device_handle, send_device_io_control};
 use basic_mutator::{EmptyDatabase, Mutator};
 use windows::Win32::Foundation::HANDLE;
@@ -60,16 +61,19 @@ impl<'a> Dispatcher for SingleIoctlDispatcher<'a> {
     }
 }
 
-pub struct FuzzIoctlDispatcher<'a> {
+#[derive(Clone)]
+pub struct FuzzIoctlDispatcher {
     pub device_name: String,
-    pub ioctl: &'a Ioctl,
+    pub ioctl: Ioctl,
 }
 
-impl<'a> Dispatcher for FuzzIoctlDispatcher<'a> {
+impl Dispatcher for FuzzIoctlDispatcher {
     fn dispatch(&self) -> windows::core::Result<()> {
         println!(
-            "Starting to fuzz {} with {}",
-            self.device_name, self.ioctl.name
+            "Starting to fuzz {} with {} in thread {:?}",
+            self.device_name,
+            self.ioctl.name,
+            thread::current().id()
         );
 
         let seed_input_buffer = self.ioctl.build_input_buffer().unwrap();

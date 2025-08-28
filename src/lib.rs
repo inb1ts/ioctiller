@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::error::Error;
 use std::fmt;
 use std::fs;
+use std::thread;
 
 pub mod dispatch;
 pub mod win_helpers;
@@ -163,6 +164,57 @@ fn check_buffer_overwrite(
 /// Wrapper around the dispatcher that simply calls the dispatch method.
 pub fn send_single(dispatcher: &impl Dispatcher) -> windows::core::Result<()> {
     dispatcher.dispatch()
+}
+
+/// Launches num_threads number of threads and runs the same dispatcher in each one.
+pub fn fuzz_single<D>(dispatcher: D, num_threads: u32) -> windows::core::Result<()>
+where
+    D: Dispatcher + Send + Sync + Clone + 'static, // TODO: This presumably is not the right way
+                                                   // to do this
+{
+    let mut handles = vec![];
+
+    for _ in 0..num_threads {
+        let dispatcher_copy = dispatcher.clone();
+        let handle = thread::spawn(move || {
+            dispatcher_copy
+                .dispatch()
+                .expect("Error running dispatch in thread");
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    Ok(())
+}
+
+pub fn fuzz_multiple<D>(dispatchers: Vec<D>) -> windows::core::Result<()>
+where
+    D: Dispatcher + Send + Sync + Clone + 'static,
+{
+    let mut handles = vec![];
+
+    for dispatcher in dispatchers {
+        let dispatcher_copy = dispatcher.clone();
+
+        let handle = thread::spawn(move || {
+            dispatcher_copy
+                .dispatch()
+                .expect("Error running dispatch in thread");
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
